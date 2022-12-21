@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+spec:
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      initContainers:
+        - name: init-pod
+          image: busybox:1.28
+          command: ["sh", "-c", "until nslookup mongo-service.default.svc.cluster.local; do echo Aguardando o Banco de Dados; sleep 2; done"]
+      containers:
+      - name: api
+        image: arduinni.azurecr.io/catalogo-pedelogo:v2
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "150m"
+          limits:
+            memory: "64Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+          name: http
+        envFrom:
+          - configMapRef:
+              name: api-configmap
+        env:
+        - name: Mongo__User
+          valueFrom:
+            secretKeyRef:
+              key: MONGO_INITDB_ROOT_USERNAME
+              name: mongodb-secret
+        - name: Mongo__Password
+          valueFrom:
+            secretKeyRef:
+              key: MONGO_INITDB_ROOT_PASSWORD
+              name: mongodb-secret
